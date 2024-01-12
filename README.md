@@ -12,7 +12,7 @@
 provider has time off scheduled
 * Time Zone management and implementation.
 * Management for paperwork time, lunch breaks, etc.
-* Better error management
+* Better error management and language surrounding it.
 ### Trains of thought that could use more exploration
 * How to better format the database schema.
 * Appointment generation- I went with what came to mind, but it's a little clunky.

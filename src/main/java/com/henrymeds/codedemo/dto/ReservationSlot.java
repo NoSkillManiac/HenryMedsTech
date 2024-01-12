@@ -13,18 +13,18 @@ import java.util.UUID;
 @NoArgsConstructor
 @Data
 @Table("RESERVATION")
-public class ReservationSlot {
+public class ReservationSlot{
     @Id
     @NonNull
-    @Column
+    @Column("reservation_id")
     private UUID reservationId;
-    @Column
+    @Column("client_name")
     private String clientName;
-    @Column
+    @Column("confirmed")
     private boolean confirmed;
-    @Column
+    @Column("confirmation_sent_at")
     private LocalDateTime confirmationSentAt;
     @NonNull
-    @Column
+    @Column("appointment_id")
     private UUID appointmentId;
 }

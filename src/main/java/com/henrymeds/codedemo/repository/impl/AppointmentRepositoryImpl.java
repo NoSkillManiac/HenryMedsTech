@@ -28,9 +28,9 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
 
     @Modifying
     @Override
-    public boolean addOrUpdateAppointments(final List<AppointmentSlot> appointments) {
+    public int[] addOrUpdateAppointments(final List<AppointmentSlot> appointments) {
         try(Connection connection = Objects.requireNonNull(jdbcTemplate.getDataSource()).getConnection()) {
-            PreparedStatement statement = connection.prepareStatement("""
+            final PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO APPOINTMENT_SLOT (appointment_id, provider_id, appointment_date, start_time, end_time)
                     VALUES (?, ?, ?, ?, ?);
                     """);
@@ -42,42 +42,59 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
                 statement.setTime(5, Time.valueOf(appointment.getEndTime()));
                 statement.addBatch();
             }
-            return statement.execute();
+            return statement.executeBatch();
         } catch (SQLException sqlException) {
             log.error("Error inserting the appointments into the appointmentSlots.");
-            return false;
+            return new int[0];
         }
     }
     @Override
     public List<AppointmentSlot> findAppointmentsForProviderOnDate(final UUID providerID, final LocalDate date) {
-        List<AppointmentSlot> appointments = new ArrayList<>();
-        ResultSet rs;
+        final List<AppointmentSlot> appointments = new ArrayList<>();
+        final String baseQuery = "SELECT * FROM APPOINTMENT_SLOT WHERE provider_id =? AND appointment_date=?";
         try(Connection connection = Objects.requireNonNull(jdbcTemplate.getDataSource()).getConnection()) {
-            PreparedStatement statement = connection.prepareStatement("""
-                SELECT *
-                FROM APP_DEMO.APPOINTMENT_SLOT
-                WHERE provider_id=?
-                AND appointment_date=?"
-                """);
+            final PreparedStatement statement = connection.prepareStatement(baseQuery);
             statement.setString(1, providerID.toString());
             statement.setDate(2, Date.valueOf(date));
-            rs = statement.executeQuery();
+            final ResultSet rs = statement.executeQuery();
 
             // Map over to the AppointmentSlot format- I would find a better  way to do this, given team input and more time.
             while(rs.next()) {
-                appointments.add(AppointmentSlot.builder()
-                        .appointmentId(UUID.fromString(rs.getString("appointmentId")))
-                        .providerId(UUID.fromString(rs.getString("providerId")))
-                        .appointmentDate(rs.getDate("appointmentDate").toLocalDate())
-                        .startTime(rs.getTime("startTime").toLocalTime())
-                        .endTime(rs.getTime("endTime").toLocalTime())
-                        .build());
+                appointments.add(buildAppointmentFromResultSet(rs));
             }
         } catch (SQLException sqlException) {
             log.error("Error retrieving the requested appointments. {}", (Object) sqlException.getStackTrace());
             return List.of();
         }
         return appointments;
+    }
+
+    @Override
+    public AppointmentSlot findAppointmentById(final UUID appointmentId) {
+        AppointmentSlot result = null;
+        final String baseSql = "SELECT * FROM APP_DEMO.APPOINTMENT_SLOT WHERE appointment_id=?";
+        try(Connection connection = Objects.requireNonNull(jdbcTemplate.getDataSource()).getConnection()) {
+            final PreparedStatement statement = connection.prepareStatement(baseSql);
+            statement.setString(1, appointmentId.toString());
+            final ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                result = buildAppointmentFromResultSet(rs);
+            }
+        } catch (SQLException sqlException) {
+            log.error("Error retrieving the requested appointment. {}", (Object) sqlException.getStackTrace());
+            return null;
+        }
+        return result;
+    }
+
+    private AppointmentSlot buildAppointmentFromResultSet(final ResultSet rs) throws SQLException{
+        return AppointmentSlot.builder()
+                .appointmentId(UUID.fromString(rs.getString("appointment_id")))
+                .providerId(UUID.fromString(rs.getString("provider_id")))
+                .appointmentDate(rs.getDate("appointment_date").toLocalDate())
+                .startTime(rs.getTime("start_time").toLocalTime())
+                .endTime(rs.getTime("end_time").toLocalTime())
+                .build();
     }
 
 }

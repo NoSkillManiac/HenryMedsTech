@@ -2,13 +2,13 @@ package com.henrymeds.codedemo.scheduler.impl
 
 import com.henrymeds.codedemo.dto.AppointmentSlot
 import com.henrymeds.codedemo.dto.ProviderAvailability
+import com.henrymeds.codedemo.dto.ProviderInfo
+import com.henrymeds.codedemo.exception.ProviderLookupFailedException
 import com.henrymeds.codedemo.repository.AppointmentRepository
 import com.henrymeds.codedemo.repository.ProviderRepository
-import groovy.util.logging.Slf4j
 import spock.lang.Specification
 
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 
 class ProviderSchedulerImplSpec extends Specification {
@@ -19,32 +19,12 @@ class ProviderSchedulerImplSpec extends Specification {
         providerScheduler = new ProviderSchedulerImpl(Mock(AppointmentRepository), Mock(ProviderRepository))
     }
 
-    def "Need"() {
-        given:
-        System.out.println(LocalDate.now())
-        System.out.println(LocalTime.now())
-        System.out.println(LocalDateTime.now())
-        System.out.println(buildProviderAvailability(LocalTime.now(), LocalTime.now()))
-        expect:
-        true
-    }
-
     def "Ensure passthrough is called when the requesting fields are not null"() {
         when:
-        List<AppointmentSlot> result = providerScheduler.getAvailability(providerId, date)
+        providerScheduler.getAvailability(UUID.randomUUID(), LocalDate.now())
 
         then:
-        numInvocations * providerScheduler.appointmentRepository.findAppointmentsForProviderOnDate(_ as UUID, _ as LocalDate) >>
-                List.of(AppointmentSlot.builder()
-                        .startTime(LocalTime.now())
-                        .build())
-        expectedSize == result.size()
-
-        where:
-        providerId        | date            || numInvocations | expectedSize
-        UUID.randomUUID() | LocalDate.now() || 1              | 1
-        UUID.randomUUID() | null            || 0              | 0
-        null              | LocalDate.now() || 0              | 0
+        1 * providerScheduler.appointmentRepository.findAppointmentsForProviderOnDate(_ as UUID, _ as LocalDate)
 
     }
 
@@ -76,17 +56,27 @@ class ProviderSchedulerImplSpec extends Specification {
         providerScheduler.updateAvailability(providerAvailability)
 
         then:
-        1 * providerScheduler.providerRepository.checkProviderExists(providerAvailability.getProviderId()) >> providerLookup
+        1 * providerScheduler.providerRepository.findById(providerAvailability.getProviderId()) >> providerLookup
         numAppointmentCalls * providerScheduler.appointmentRepository.addOrUpdateAppointments(_ as List)
 
         where:
-        providerLookup | startTime          | endTime            || numAppointmentCalls
-        true           | LocalTime.MIDNIGHT | LocalTime.NOON     || 1
-        true           | LocalTime.now()    | LocalTime.now()    || 0
-        true           | LocalTime.NOON     | LocalTime.MIDNIGHT || 0
-        false          | LocalTime.MIDNIGHT | LocalTime.NOON     || 0
-        false          | LocalTime.now()    | LocalTime.now()    || 0
-        false          | LocalTime.NOON     | LocalTime.MIDNIGHT || 0
+        providerLookup                                   | startTime          | endTime            || numAppointmentCalls
+        Optional.of(new ProviderInfo(UUID.randomUUID())) | LocalTime.MIDNIGHT | LocalTime.NOON     || 1
+        Optional.of(new ProviderInfo(UUID.randomUUID())) | LocalTime.now()    | LocalTime.now()    || 0
+        Optional.of(new ProviderInfo(UUID.randomUUID())) | LocalTime.NOON     | LocalTime.MIDNIGHT || 0
+    }
+
+    def "Ensure providers generate availability if they exist in the system and there are appointments in the given time"() {
+        given:
+        ProviderAvailability providerAvailability = buildProviderAvailability(LocalTime.MIDNIGHT, LocalTime.NOON)
+
+        when:
+        providerScheduler.updateAvailability(providerAvailability)
+
+        then:
+        1 * providerScheduler.providerRepository.findById(providerAvailability.getProviderId()) >> Optional.empty()
+        thrown(ProviderLookupFailedException.class)
+
 
     }
 

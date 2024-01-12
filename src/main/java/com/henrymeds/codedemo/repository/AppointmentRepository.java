@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public interface AppointmentRepository{
 
-     boolean addOrUpdateAppointments(final List<AppointmentSlot> appointments);
+     int[] addOrUpdateAppointments(final List<AppointmentSlot> appointments);
      List<AppointmentSlot> findAppointmentsForProviderOnDate(final UUID providerID, final LocalDate date);
+
+     AppointmentSlot findAppointmentById(final UUID appointmentId);
 }

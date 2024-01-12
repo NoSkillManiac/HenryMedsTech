@@ -5,13 +5,14 @@ import com.henrymeds.codedemo.dto.ProviderAvailability;
 import com.henrymeds.codedemo.scheduler.ProviderScheduler;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-@RestController("/provider")
+@RestController
 public class Provider {
 
     private final ProviderScheduler providerScheduler;

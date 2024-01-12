@@ -32,9 +32,6 @@ public class ProviderSchedulerImpl implements ProviderScheduler {
     }
     @Override
     public List<AppointmentSlot> getAvailability(final UUID providerId, final LocalDate requestedDate) {
-        if (Objects.isNull(providerId) || Objects.isNull(requestedDate)) {
-            return List.of();
-        }
         return appointmentRepository.findAppointmentsForProviderOnDate(providerId, requestedDate);
     }
 
